@@ -1,5 +1,5 @@
 # ForceQuit Changelog
 
-## [Initial Version] - 2023-08-30
+## [Initial Version] - 2023-09-10
 
 - Initial version of ForceQuit
