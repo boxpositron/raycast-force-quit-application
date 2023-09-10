@@ -105,3 +105,4 @@ raycast-env.d.ts
 .DS_Store
 
 node_modules
+*.applescript
