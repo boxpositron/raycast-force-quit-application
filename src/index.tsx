@@ -1,7 +1,14 @@
 import { promisify } from "util";
 import { exec } from "child_process";
 import { useState, useEffect, useCallback } from "react";
-import { List, ActionPanel, Action } from "@raycast/api";
+import {
+  Icon,
+  List,
+  Alert,
+  Action,
+  ActionPanel,
+  confirmAlert,
+} from "@raycast/api";
 
 import { type Application } from "./types";
 
@@ -17,39 +24,57 @@ type State = {
 
 const execASync = promisify(exec);
 
-function sortApplicationsInAlphabeticalOrder(
-  applications: Application[]
-): Application[] {
-  return applications.sort((a, b) => {
-    if (a.name.toLocaleLowerCase() < b.name.toLocaleLowerCase()) return -1;
-    if (a.name.toLocaleLowerCase() > b.name.toLocaleLowerCase()) return 1;
+function sortApplicationsInAlphabeticalOrder<
+  T extends Pick<Application, "name">
+>(a: T, b: T): number {
+  if (a.name.toLocaleLowerCase() < b.name.toLocaleLowerCase()) return -1;
+  if (a.name.toLocaleLowerCase() > b.name.toLocaleLowerCase()) return 1;
 
-    return 0;
-  });
+  return 0;
+}
+
+function fetchApplicationIcon<T extends Omit<Application, "icon">>(
+  application: T
+): Application {
+  const [applicationPath] = application.path.split("Contents");
+
+  if (applicationPath.includes(".app")) {
+    return {
+      ...application,
+      fileIcon: applicationPath,
+    };
+  }
+
+  return {
+    ...application,
+    fileIcon: application.name,
+  };
 }
 
 async function loadUserApplications(): Promise<Application[]> {
   try {
     const dumpScriptBase64 = toBase64(dumpScript);
-    // Run base64 encoded applescript in bash
+
     const { stdout } = await execASync(
       `echo "${dumpScriptBase64}" | base64 --decode | osascript`
     );
 
     const data = stdout.split(",").map((item) => item.trim());
-    const groups = clusterBy(data, 4);
 
-    const applications = mapArrayToObject<string, Application>(groups, [
+    const groups = clusterBy(data, 3);
+
+    const applicationList = mapArrayToObject<string, Application>(groups, [
       "name",
       "pid",
       "path",
-      "icon",
     ]);
 
-    return sortApplicationsInAlphabeticalOrder(applications);
-  } catch (err) {
-    console.error(err);
+    const applications = applicationList
+      .map(fetchApplicationIcon)
+      .sort(sortApplicationsInAlphabeticalOrder);
 
+    return applications;
+  } catch (err) {
     return [];
   }
 }
@@ -78,12 +103,29 @@ export default function Command() {
   const hydrateApplications = useCallback(async function () {
     setLoadingState(true);
     const applications = await loadUserApplications();
+
     setState((state) => ({ ...state, applications }));
     setLoadingState(false);
   }, []);
 
   const closeApplication = useCallback(
     async (application: Application) => {
+      const confirmation = await confirmAlert({
+        title: "Force Quit",
+        message: `Are you sure you want to force quit ${application.name}?`,
+        icon: Icon.XMarkCircle,
+        primaryAction: {
+          title: "Force Quit",
+          style: Alert.ActionStyle.Destructive,
+        },
+        dismissAction: {
+          title: "Cancel",
+          style: Alert.ActionStyle.Cancel,
+        },
+      });
+
+      if (!confirmation) return;
+
       setLoadingState(true);
       await execASync(`kill -9 ${application.pid}`);
       await hydrateApplications();
@@ -107,11 +149,17 @@ export default function Command() {
           <List.Item
             key={application.pid}
             title={application.name}
+            icon={{
+              fileIcon: application.fileIcon,
+            }}
             actions={
               <ActionPanel>
                 <ActionPanel.Section>
                   <Action
-                    title={`Close ${application.name}`}
+                    title={`Force Quit ${application.name}`}
+                    icon={{
+                      fileIcon: application.fileIcon,
+                    }}
                     onAction={() => closeApplication(application)}
                   />
                 </ActionPanel.Section>
