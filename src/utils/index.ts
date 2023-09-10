@@ -25,3 +25,29 @@ export function mapArrayToObject<T, K>(
     return Object.assign({}, ...itemObject);
   });
 }
+
+export function nullishFilter<T>(value: T | null | undefined): value is T {
+  return value !== null && value !== undefined;
+}
+
+// Settled default
+
+export function settledDefault<T>(
+  results: PromiseSettledResult<T>
+): T | undefined;
+
+export function settledDefault<T>(
+  results: PromiseSettledResult<T>[]
+): (T | undefined)[];
+
+export function settledDefault<T>(
+  results: PromiseSettledResult<T> | PromiseSettledResult<T>[]
+): (T | undefined) | (T | undefined)[] {
+  if (!Array.isArray(results)) {
+    return results.status === "fulfilled" ? results.value : undefined;
+  }
+
+  return results.map((result) =>
+    result.status === "fulfilled" ? result.value : undefined
+  );
+}
