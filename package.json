@@ -18,7 +18,7 @@
   "license": "MIT",
   "commands": [
     {
-      "name": "force-quit",
+      "name": "index",
       "title": "Force Quit",
       "subtitle": "Force quit application",
       "description": "Force quit running / stalled applications",
@@ -35,6 +35,7 @@
     "@types/react": "18.0.9",
     "eslint": "^7.32.0",
     "prettier": "^2.5.1",
+    "react-devtools": "^4.24.6",
     "typescript": "^4.4.3"
   }
 }
